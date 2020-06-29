@@ -57,7 +57,7 @@ def test(cnn, dataset, class_labels, weights=None, gpu_idx=0):
     all_subjects=[]
     all_dices=[]
     lines=[]
-
+    dice_each_class = []
     with torch.no_grad():
         for input_data, truth, subjects in test_loader:
 
@@ -69,27 +69,31 @@ def test(cnn, dataset, class_labels, weights=None, gpu_idx=0):
 
             all_subjects.append( subjects[0] )
             all_dices.append( cur_loss.item()  )
+            dice_each_class.append(dices)
 
-    print('Testing DICE: %.3f' % -np.array(all_dices).mean())
+    # print('Testing DICE(weigted loss): %.3f' % -np.array(all_dices).mean())
+    print('Dice_each_class = ', np.array(dice_each_class).mean(axis=0),
+          " || ",
+          "mDice = ", np.array(dice_each_class).mean())
     return -np.array(all_dices).mean()
 
 def get_weights(dice_list, class_labels):
 
-	weights = len(class_labels)*[0.0]
-	total = float(len(dice_list))
-	for dices in dice_list:
-		for i,d in enumerate(dices):
-			weights[i]+=d
+    weights = len(class_labels)*[0.0]
+    total = float(len(dice_list))
+    for dices in dice_list:
+        for i,d in enumerate(dices):
+            weights[i]+=d
 
-	weights = [w/total for w in weights]
-	weights = [1.0-w for w in weights]
-	sum_weights = 0.0
-	for w in weights:
-		sum_weights+=w
-	
-	weights = [round(w/sum_weights,3) for w in weights]
+    weights = [w/total for w in weights]
+    weights = [1.0-w for w in weights]
+    sum_weights = 0.0
+    for w in weights:
+        sum_weights+=w
 
-	return weights
+    weights = [round(w/sum_weights,3) for w in weights]
+
+    return weights
 
 def train_model(save_model=True, test_train_split_fpath='test_train_split.json', verbose=True, make_figures=True):
 
@@ -192,9 +196,10 @@ def train_model(save_model=True, test_train_split_fpath='test_train_split.json',
             #del loss
 
             weights = get_weights(dices_list, class_labels)
-            percent_complete = 100*(float(i*batch_size)/float(len(training_dataset)))
-            percent_complete='          %.2f'%percent_complete+'%'
-            print(percent_complete)
+            if i%20 == 0:
+                percent_complete = 100*(float(i*batch_size)/float(len(training_dataset)))
+                percent_complete='%.2f'%percent_complete+'%'
+                print(percent_complete,flush=True,end='')
             # print(percent_complete + len(percent_complete)*'\b')
             #i+=1 # Jeffrey: I do not think this is needed
         end_time = time.time()
@@ -215,7 +220,7 @@ def train_model(save_model=True, test_train_split_fpath='test_train_split.json',
             print('Creating figures...')
             create_figures(cnn, figure_dataset)
 
-        current_dice = test(cnn, testing_dataset, class_labels, weights)
+        current_dice = test(cnn, testing_dataset, class_labels, weights=weights)
         cnn.train()
 
         if current_dice >= max_dice:
@@ -229,14 +234,14 @@ def train_model(save_model=True, test_train_split_fpath='test_train_split.json',
             cnn.save( training_parameters['model_file_name'] )
 
         if verbose:
-            print( 'Dice score: %.6f\t|\t Best DICE: %.6f' % (current_dice, max_dice) )
+            print( 'Dice score(val weighted loss): %.6f\t|\t Best DICE(val weighted loss): %.6f' % (current_dice, max_dice) )
             print(200*'=')
             print(200*'=')
 
     return final_training_dice, best_testing_dice
 
 if __name__ == "__main__":
-    final_training_dice, best_testing_dice = train_model()
+    final_training_dice, best_testing_dice = train_model(make_figures=False)
     print ("Finished Training")
     print(200*'=')
     print ("Final Training Dice: %.6f\t|\t Best Test DICE: %.6f" % (final_training_dice, best_testing_dice))

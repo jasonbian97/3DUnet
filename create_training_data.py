@@ -6,9 +6,10 @@ import json
 from scipy.ndimage import zoom as spzoom
 import shutil
 
-ct_in_root = 'data/raw/NiiCT'
+# img_in_root = 'data/raw/NiiCT'
+img_in_root = "data/raw/NiiBiMask"
 seg_in_root = "data/raw/NiiAnnReg"
-out_root = 'data/cache/train_test_data_npy'
+out_root = 'data/cache/train_test_data_npy_BiMask_sp1'
 
 if os.path.exists(out_root):
     shutil.rmtree(out_root)
@@ -20,14 +21,14 @@ with open('training_parameters.json') as fp:
     training_parameters = json.load(fp)
 W = training_parameters['patch_width']
 
-files = os.listdir(ct_in_root)
-files = [f for f in files if not 'VOI' in f]
+files = os.listdir(img_in_root)
+# files = [f for f in files if not 'VOI' in f]
 
 for f in files:
     print(f)
-
-    c1 = os.path.join(ct_in_root,f)
-    c2 = os.path.join(seg_in_root,f.replace('.nii.gz', '_VOI_labelled.nii.gz'))
+    base_name = f.split("_")[0] + "_" + f.split("_")[1]
+    c1 = os.path.join(img_in_root,f)
+    c2 = os.path.join(seg_in_root, base_name + "_VOI_labelled.nii.gz")
 
     ct = nibabel.load(c1)
     seg = nibabel.load(c2)
@@ -38,7 +39,8 @@ for f in files:
     ct = ct.get_data()
     seg = seg.get_data()
 
-    res = [1.5, 1.5, 1.5]
+    # res = [1.5, 1.5, 1.5]
+    res = [1.0, 1.0, 1.0]
     zoom_factor = []
     for k in range(3):
         zoom_factor.append(abs(T[k, k]) / res[k]) # ???
