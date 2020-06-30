@@ -100,5 +100,12 @@ def parse_opts():
         type=int,
         help="num_workers for dataloaders"
     )
+    parser.add_argument(
+        '--debug',
+        default=0,
+        type=int,
+        help=''
+    )
+
     args = parser.parse_args()
     return args
