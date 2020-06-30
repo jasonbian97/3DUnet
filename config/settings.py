@@ -48,14 +48,16 @@ def parse_opts():
     )
     parser.add_argument(
         '--milestones',
+        nargs="*",
+        type=int,
         default=[5,10,20],
-        type=list,
         help=""
     )
     parser.add_argument(
         '--initial_label_weights',
+        nargs="*",
         default=[0.00052994, 0.4663487 , 0.04557499, 0.09379968, 0.01748808, 0.10227875, 0.27397986],
-        type=list,
+        type=float,
         help=""
     )
     parser.add_argument(
