@@ -99,6 +99,7 @@ class Unet3D(pl.LightningModule):
         return {"log":logs}
 
     def on_epoch_start(self):
+
         if self.hparams.verbose:
             print( 'Learning rate: %s' % str( self.trainer.lr_schedulers[0]["scheduler"].get_last_lr() )) #???
             print( 'Weights: %s' % (str(self.label_weights)) )
