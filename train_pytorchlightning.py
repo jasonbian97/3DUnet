@@ -100,7 +100,7 @@ class Unet3D(pl.LightningModule):
 
     def on_epoch_start(self):
         if self.hparams.verbose:
-            print( 'Learning rate: %s' % str( self.trainer.lr_schedulers[0]["scheduler"].get_lr() )) #???
+            print( 'Learning rate: %s' % str( self.trainer.lr_schedulers[0]["scheduler"].get_last_lr() )) #???
             print( 'Weights: %s' % (str(self.label_weights)) )
 
     def validation_step(self, batch, batch_idx):
@@ -112,12 +112,13 @@ class Unet3D(pl.LightningModule):
         return {"dices": dices,"loss":cur_loss}
 
     def validation_epoch_end(self, outputs):
-        dices_list = [[x['dices'] for x in outputs]]
+        dices_list = [x['dices'] for x in outputs]
         weighted_loss = torch.stack([x['loss'] for x in outputs]).mean()
         # add logging: compute val stats
         dices_mat = np.array(dices_list)
+        dice_each_class = np.mean(dices_mat,axis=0)
         self.logger.experiment.add_text("val/dice_each_class",
-                                        str(dices_mat.mean(axis=0)) + " || mDICE: {}".format(dices_mat.mean()),
+                                        str(dice_each_class) + " || mDICE: {}".format(dice_each_class.mean()),
                                         self.current_epoch)
         logs = {'val_mDICE': torch.tensor(dices_mat.mean()),
                 "weighted_loss": weighted_loss}
