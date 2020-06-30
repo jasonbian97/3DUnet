@@ -84,7 +84,10 @@ class Unet3D(pl.LightningModule):
         return {'loss': loss, 'log': logs, "dices":dices}
 
     def training_epoch_end(self,outputs):
+        # print(outputs)
+        # print("call training_epoch_end")
         dices_list = [x['dices'] for x in outputs]
+        # print("\n ","dices_list",dices_list)
         # update class weights according to last epoch's performance
         self.label_weights = self.__get_weights__(dices_list, self.hparams.class_labels)
         # add logging: compute training stats
@@ -160,7 +163,12 @@ if __name__ == '__main__':
         trainer = Trainer(gpus=hparams.gpu_id)
         trainer.test(pretrained_model)
         exit(0)
-
+    if hparams.debug:
+        limit_train_batches = 5
+        limit_val_batches = 2
+    else:
+        limit_train_batches = 1.0
+        limit_val_batches = 1.0
     Sys = Unet3D(hparams=hparams)
     trainer = Trainer(checkpoint_callback=checkpoint_callback,
                       callbacks=[lr_logger],
@@ -168,8 +176,8 @@ if __name__ == '__main__':
                       default_root_dir='results/{}'.format(os.path.basename(__file__)[:-3]),
                       max_epochs = hparams.num_epochs,
                       check_val_every_n_epoch=2,
-                      limit_train_batches=1.0,
-                      limit_val_batches=1.0
+                      limit_train_batches=limit_train_batches,
+                      limit_val_batches=limit_val_batches
                       )
 
     trainer.fit(Sys)
