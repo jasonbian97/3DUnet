@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from unet import *
 from subvolume_dataset import *
 from dice_cost_functions import *
-
+import os
+os.chdir(os.path.dirname(__file__)) # set current .py file as working directory
 from torch.optim.lr_scheduler import MultiStepLR
 
 import torch.nn.functional as F
@@ -195,7 +196,7 @@ def train_model(save_model=True, test_train_split_fpath='test_train_split.json',
             optimizer.step()
             #del loss
 
-            weights = get_weights(dices_list, class_labels)
+            weights = get_weights(dices_list, class_labels) ###??? too frequently??
             if i%20 == 0:
                 percent_complete = 100*(float(i*batch_size)/float(len(training_dataset)))
                 percent_complete='%.2f'%percent_complete+'%'

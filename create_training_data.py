@@ -5,7 +5,8 @@ import random
 import json
 from scipy.ndimage import zoom as spzoom
 import shutil
-
+import os
+os.chdir(os.path.dirname(__file__)) # set current .py file as working directory
 # img_in_root = 'data/raw/NiiCT'
 img_in_root = "data/raw/NiiBiMask"
 seg_in_root = "data/raw/NiiAnnReg"
