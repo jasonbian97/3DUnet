@@ -164,4 +164,124 @@ class unet3(nn.Module):
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if 'last_convolution' not in k}
         cur_model_dict.update(pretrained_dict) 
         self.load_state_dict( cur_model_dict )
-        
+
+
+class unet3_4L(nn.Module):
+    def __init__(self, n_channels, n_classes, drop_rate=0.0, training=True):
+        super(unet3_4L, self).__init__()
+
+        self.drop_rate = drop_rate
+
+        # 1st layer down
+        self.db1a = BasicBlock(n_channels, 2 * n_channels)
+        self.db1b = BasicBlock(self.db1a.n_out_channels, 2 * self.db1a.n_out_channels)
+        self.td1 = TransitionDown(drop_rate=drop_rate)
+
+        # 2nd layer down
+        self.db2a = BasicBlock(self.db1b.n_out_channels, 2 * self.db1b.n_out_channels)
+        self.db2b = BasicBlock(self.db2a.n_out_channels, 2 * self.db2a.n_out_channels)
+        self.td2 = TransitionDown(drop_rate=drop_rate)
+
+        # 3rd layer down
+        self.db3a = BasicBlock(self.db2b.n_out_channels, 2 * self.db2b.n_out_channels)
+        self.db3b = BasicBlock(self.db3a.n_out_channels, 2 * self.db3a.n_out_channels)
+        self.td3 = TransitionDown(drop_rate=drop_rate)
+
+        # 4th layer down
+        self.db4a = BasicBlock(self.db3b.n_out_channels, 2 * self.db3b.n_out_channels)
+        self.db4b = BasicBlock(self.db4a.n_out_channels, 2 * self.db4a.n_out_channels)
+        self.td4 = TransitionDown(drop_rate=drop_rate)
+
+        # Bottleneck
+        self.db5a = BasicBlock(self.db4b.n_out_channels, self.db4b.n_out_channels, drop_rate=drop_rate,
+                               training=training)
+        self.db5b = BasicBlock(self.db5a.n_out_channels, self.db5a.n_out_channels)
+        self.tu5 = TransitionUp(self.db5b.n_out_channels, self.db5b.n_out_channels)
+
+        # 4th layer up
+        self.ub4a = BasicBlock(self.tu5.n_out_channels + self.db4b.n_out_channels, self.db4b.n_out_channels)
+        self.ub4b = BasicBlock(self.ub4a.n_out_channels, self.ub4a.n_out_channels)
+        self.tu4 = TransitionUp(self.ub4b.n_out_channels, self.ub4b.n_out_channels)
+
+        # 3rd layer up
+        self.ub3a = BasicBlock(self.tu4.n_out_channels + self.db3b.n_out_channels, self.db3b.n_out_channels)
+        self.ub3b = BasicBlock(self.ub3a.n_out_channels, self.ub3a.n_out_channels)
+        self.tu3 = TransitionUp(self.ub3b.n_out_channels, self.ub3b.n_out_channels)
+
+        # 2rd layer up
+        self.ub2a = BasicBlock(self.tu3.n_out_channels + self.db2b.n_out_channels, self.db2b.n_out_channels)
+        self.ub2b = BasicBlock(self.ub2a.n_out_channels, self.ub2a.n_out_channels)
+        self.tu2 = TransitionUp(self.ub2b.n_out_channels, self.ub2b.n_out_channels)
+
+        # 1st layer up
+        self.ub1a = BasicBlock(self.tu2.n_out_channels + self.db1b.n_out_channels, self.db1b.n_out_channels)
+        self.ub1b = BasicBlock(self.ub1a.n_out_channels, self.ub1a.n_out_channels)
+
+        self.last_convolution = nn.Conv3d(self.ub1b.n_out_channels, n_classes, kernel_size=1)
+
+        self.softmax_layer = nn.Softmax(dim=1)
+        self.training = training
+
+    def forward(self, x):
+        # DB0
+        x = self.db1a(x)
+        x1 = self.db1b(x)
+        x = self.td1(x1)
+
+        x = self.db2a(x)
+        x2 = self.db2b(x)
+        x = self.td2(x2)
+
+        x = self.db3a(x)
+        x3 = self.db3b(x)
+        x = self.td3(x3)
+
+        x = self.db4a(x)
+        x4 = self.db4b(x)
+        x = self.td4(x4)
+
+        x = self.db5a(x)
+        x = self.db5b(x)
+
+        x = self.tu5(x)
+        x = torch.cat([x, x4], 1)
+        x = self.ub4a(x)
+        x = self.ub4b(x)
+
+        x = self.tu4(x)
+        x = torch.cat([x, x3], 1)
+        x = self.ub3a(x)
+        x = self.ub3b(x)
+
+        x = self.tu3(x)
+        x = torch.cat([x, x2], 1)
+        x = self.ub2a(x)
+        x = self.ub2b(x)
+
+        x = self.tu2(x)
+        x = torch.cat([x, x1], 1)
+        x = self.ub1a(x)
+        x = self.ub1b(x)
+
+        x = self.last_convolution(x)
+        x = self.softmax_layer(x)
+
+        return x
+
+    def save(self, file_name):
+        torch.save(self.state_dict(), file_name)
+
+    def load(self, file_name):
+        pretrained_dict = torch.load(file_name)
+        self.load_state_dict(pretrained_dict)
+
+    def load_cpu(self, file_name):
+        pretrained_dict = torch.load(file_name, map_location='cpu')
+        self.load_state_dict(pretrained_dict)
+
+    def load_all_but_final_layer(self, file_name):
+        cur_model_dict = self.state_dict()
+        pretrained_dict = torch.load(file_name)
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if 'last_convolution' not in k}
+        cur_model_dict.update(pretrained_dict)
+        self.load_state_dict(cur_model_dict)

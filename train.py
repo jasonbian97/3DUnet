@@ -187,6 +187,7 @@ def train_model(save_model=True, test_train_split_fpath='test_train_split.json',
 
             # forward + backward + optimize
             predicted = cnn(input_data)
+            # argmax ????
 
             loss, dices = dice_coef_multilabel(truth, predicted, class_labels=class_labels, smooth=0.01, weights=weights)
             dices_list.append( dices )

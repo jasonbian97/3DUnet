@@ -108,6 +108,13 @@ def parse_opts():
         type=int,
         help=''
     )
+    parser.add_argument(
+        '--unet_type',
+        default='3-1-3',
+        type=str,
+        help=''
+    )
+
 
     args = parser.parse_args()
     return args

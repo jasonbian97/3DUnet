@@ -31,7 +31,8 @@ class Unet3D(pl.LightningModule):
         with open('training_parameters.json') as fp:
             default_params = edict(json.load(fp))
         # update
-        hparams = edict(vars(hparams))
+        if not isinstance(hparams,dict) :
+            hparams = edict(vars(hparams))
         default_params.update(hparams)
         self.hparams = default_params
 
@@ -39,7 +40,12 @@ class Unet3D(pl.LightningModule):
         torch.backends.cudnn.enabled = False
 
         # getting model
-        self.cnn = unet3(self.hparams.n_channels, self.hparams.n_classes, drop_rate=self.hparams.dropRate)
+        if hparams.unet_type == "3-1-3":
+            self.cnn = unet3(self.hparams.n_channels, self.hparams.n_classes, drop_rate=self.hparams.dropRate)
+        elif hparams.unet_type == "4-1-4":
+            self.cnn = unet3_4L(self.hparams.n_channels, self.hparams.n_classes, drop_rate=self.hparams.dropRate)
+        else:
+            raise ValueError("wrong unet-type")
         # print(self.cnn)
         self.label_weights = self.hparams.initial_label_weights
 
