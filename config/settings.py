@@ -16,14 +16,15 @@ def parse_opts():
         type=int,
         help="Number of segmentation classes"
     )
-    parser.add_argument(
-        '--reuse_model',
-        default=0,
-        type=int,
-        help=""
-    )
+    # parser.add_argument(
+    #     '--reuse_model',
+    #     default=0,
+    #     type=int,
+    #     help=""
+    # )
     parser.add_argument(
         '--batch_size',
+        required= True,
         default=10,
         type=int,
         help=""
@@ -36,6 +37,7 @@ def parse_opts():
     )
     parser.add_argument(
         '--num_epochs',
+        required=True,
         default=30,
         type=int,
         help=""
@@ -62,6 +64,7 @@ def parse_opts():
     )
     parser.add_argument(
         '--data_root',
+        required=True,
         default='data/cache/train_test_data_npy_BiMask_sp1',
         type=str,
         help='Root directory path of data'
@@ -110,11 +113,38 @@ def parse_opts():
     )
     parser.add_argument(
         '--unet_type',
+        required=True,
         default='3-1-3',
         type=str,
         help=''
     )
-
+    parser.add_argument(
+        '--cur_ckpt_loc',
+        default= "/content/3DUnet/results",
+        type=str,
+        help=''
+    )
+    parser.add_argument(
+        '--ID',
+        default="DEFAULT-ID",
+        type=str,
+        help=''
+    )
+    parser.add_argument(
+        '--save_additional_checkpoint',
+        default="",
+        required= True,
+        type=str,
+        help='save additional checkpoint and logging file to the path provided, always used when using Colab, used \
+             to save mid point to Google Drive'
+    )
+    parser.add_argument(
+        '--resume_path',
+        default="",
+        required=True,
+        type=str,
+        help='some/path/to/my_checkpoint.ckpt'
+    )
 
     args = parser.parse_args()
     return args

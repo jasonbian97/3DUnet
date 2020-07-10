@@ -10,7 +10,8 @@ from easydict import EasyDict as edict
 import torch.nn.functional as F
 import pdb
 import numpy.ma as ma
-
+import subprocess
+from datetime import datetime
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateLogger
 from pytorch_lightning import Trainer
@@ -51,6 +52,8 @@ class Unet3D(pl.LightningModule):
 
         with open(self.hparams.test_train_split_fpath) as fp:
             self.train_val_split = json.load(fp)
+
+        self.current_best_mDICE = -1
 
     def forward(self, x):
         x = self.cnn(x)
@@ -129,6 +132,22 @@ class Unet3D(pl.LightningModule):
                                         self.current_epoch)
         logs = {'val_mDICE': torch.tensor(dices_mat.mean()),
                 "weighted_loss": weighted_loss}
+
+        if self.hparams.save_additional_checkpoint not in ["", None]:
+            if logs["val_mDICE"].numpy() > self.current_best_mDICE:
+                self.current_best_mDICE = logs["val_mDICE"].numpy() # update
+                now = datetime.now() # get time
+                dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")
+                tarfname = "{}-{}-mDICE-{}.tar.gz".\
+                    format(self.hparams.ID, dt_string, np.round(logs["val_mDICE"].numpy(),decimals = 3))
+                subprocess.run('tar -czf {} {}'.format(tarfname, self.hparams.cur_ckpt_loc).split())
+                subprocess.run(["cp", "-r", tarfname, self.hparams.save_additional_checkpoint])
+                subprocess.run(["rm", tarfname])
+                print("Save training checkpoint {} to {}".
+                      format(tarfname, self.hparams.save_additional_checkpoint))
+            else:
+                print("Not best metric. Did not save the additional checkpoint.")
+
         return {"log": logs}
 
     def __get_weights__(self, dice_list, class_labels):
@@ -153,6 +172,8 @@ if __name__ == '__main__':
     # settings
     hparams = config.settings.parse_opts()
 
+    Sys = Unet3D(hparams=hparams)
+
     checkpoint_callback = ModelCheckpoint(
         filepath=None,
         monitor='val_mDICE',
@@ -163,22 +184,21 @@ if __name__ == '__main__':
 
     lr_logger = LearningRateLogger()
 
-    if hparams.phase == "test":
-        pretrained_model = Unet3D.load_from_checkpoint(
-            checkpoint_path = "trails/logs/train_lightning/lightning_logs/version_0/checkpoints/epoch=29.ckpt",
-            hparams_file= "trails/logs/train_lightning/lightning_logs/version_0/hparams.yaml"
-        )
-        trainer = Trainer(gpus=hparams.gpu_id)
-        trainer.test(pretrained_model)
-        exit(0)
     if hparams.debug:
         limit_train_batches = 5
         limit_val_batches = 2
     else:
         limit_train_batches = 1.0
         limit_val_batches = 1.0
-    Sys = Unet3D(hparams=hparams)
-    trainer = Trainer(checkpoint_callback=checkpoint_callback,
+
+    if hparams.resume_path not in ["",None]:
+        print("Resume Training Process from {}".format(hparams.resume_path))
+        resume_path = hparams.resume_path
+    else:
+        resume_path = None
+
+    trainer = Trainer(resume_from_checkpoint=resume_path,
+                      checkpoint_callback=checkpoint_callback,
                       callbacks=[lr_logger],
                       gpus=hparams.gpu_id,
                       default_root_dir='results/{}'.format(os.path.basename(__file__)[:-3]),

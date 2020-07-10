@@ -10,7 +10,7 @@ os.chdir(os.path.dirname(__file__)) # set current .py file as working directory
 # img_in_root = 'data/raw/NiiCT'
 img_in_root = "data/raw/NiiBiMask"
 seg_in_root = "data/raw/NiiAnnReg"
-out_root = 'data/cache/train_test_data_npy_BiMask_sp1'
+out_root = 'data/cache/train_test_data_npy_BiMask_sp1_blocksize96'
 
 if os.path.exists(out_root):
     shutil.rmtree(out_root)
@@ -20,8 +20,8 @@ else:
 
 with open('training_parameters.json') as fp:
     training_parameters = json.load(fp)
-W = training_parameters['patch_width']
-
+# W = training_parameters['patch_width']
+W = 96
 files = os.listdir(img_in_root)
 # files = [f for f in files if not 'VOI' in f]
 
