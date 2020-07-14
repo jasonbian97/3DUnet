@@ -77,7 +77,7 @@ def parse_opts():
     )
     parser.add_argument(
         '--manual_seed',
-        default=66,
+        default=1,
         type=int,
         help=""
     )
@@ -87,9 +87,17 @@ def parse_opts():
         type=str,
         help='train or test'
     )
+
     parser.add_argument(
-        '--gpu_id',
-        nargs='+',
+        '--distributed',
+        default=None,
+        required=True,
+        type=str,
+        help='dp,ddp,None'
+    )
+    parser.add_argument(
+        '--gpus',
+        default= -1,
         type=int,
         help='Gpu id lists'
     )
@@ -127,6 +135,7 @@ def parse_opts():
     parser.add_argument(
         '--ID',
         default="DEFAULT-ID",
+        required= True,
         type=str,
         help=''
     )
@@ -145,6 +154,24 @@ def parse_opts():
         type=str,
         help='some/path/to/my_checkpoint.ckpt'
     )
+
+    parser.add_argument(
+        '--amp_level',
+        default="O2",
+        required=True,
+        type=str,
+        help='O0:FP32; O1,O2:Mixed; O3:FP16'
+    )
+
+    parser.add_argument(
+        '--acc_grad',
+        default=1,
+        type=int,
+        help="""accumulate every n batches (effective batch size is batch*n); 
+        # no accumulation for epochs 1-4. accumulate 3 for epochs 5-10. accumulate 20 after that
+        trainer = Trainer(accumulate_grad_batches={5: 3, 10: 20})"""
+    )
+
 
     args = parser.parse_args()
     return args

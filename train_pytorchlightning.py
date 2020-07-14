@@ -14,7 +14,7 @@ import subprocess
 from datetime import datetime
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateLogger
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer,seed_everything
 
 from unet import *
 from subvolume_dataset import *
@@ -37,13 +37,13 @@ class Unet3D(pl.LightningModule):
         default_params.update(hparams)
         self.hparams = default_params
 
-        torch.manual_seed(self.hparams.manual_seed)
-        torch.backends.cudnn.enabled = False
+        # torch.manual_seed(self.hparams.manual_seed)
+        # torch.backends.cudnn.enabled = False
 
         # getting model
-        if hparams.unet_type == "3-1-3":
+        if self.hparams.unet_type == "3-1-3":
             self.cnn = unet3(self.hparams.n_channels, self.hparams.n_classes, drop_rate=self.hparams.dropRate)
-        elif hparams.unet_type == "4-1-4":
+        elif self.hparams.unet_type == "4-1-4":
             self.cnn = unet3_4L(self.hparams.n_channels, self.hparams.n_classes, drop_rate=self.hparams.dropRate)
         else:
             raise ValueError("wrong unet-type")
@@ -172,6 +172,8 @@ if __name__ == '__main__':
     # settings
     hparams = config.settings.parse_opts()
 
+    seed_everything(hparams.manual_seed) # remove the randomness in the initialization and training process
+
     Sys = Unet3D(hparams=hparams)
 
     checkpoint_callback = ModelCheckpoint(
@@ -191,19 +193,29 @@ if __name__ == '__main__':
         limit_train_batches = 1.0
         limit_val_batches = 1.0
 
-    if hparams.resume_path not in ["",None]:
+    if hparams.resume_path not in ["","None",None]:
         print("Resume Training Process from {}".format(hparams.resume_path))
         resume_path = hparams.resume_path
     else:
         resume_path = None
 
+    if hparams.distributed not in ["","None",None]:
+        print("Using Distributed Training: {}".format(hparams.distributed))
+        distributed = hparams.distributed
+    else:
+        distributed = None
+
     trainer = Trainer(resume_from_checkpoint=resume_path,
+                      log_gpu_memory="all",
                       checkpoint_callback=checkpoint_callback,
                       callbacks=[lr_logger],
-                      gpus=hparams.gpu_id,
+                      gpus=hparams.gpus,
                       default_root_dir='results/{}'.format(os.path.basename(__file__)[:-3]),
                       max_epochs = hparams.num_epochs,
                       check_val_every_n_epoch=2,
+                      amp_level=hparams.amp_level,
+                      distributed_backend=distributed,
+                      accumulate_grad_batches = hparams.acc_grad,
                       limit_train_batches=limit_train_batches,
                       limit_val_batches=limit_val_batches
                       )

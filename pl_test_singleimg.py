@@ -26,7 +26,7 @@ import yaml
 import nibabel
 from scipy.ndimage import zoom as spzoom
 
-hp_path = "/mnt/ssd2/Projects/AortaSeg/chuckUnet/results/train_pytorchlightning/lightning_logs/version_0/hparams.yaml"
+hp_path = "/mnt/ssd2/Projects/AortaSeg/chuckUnet/results/train_pytorchlightning/lightning_logs/version_val86/hparams.yaml"
 test_img_path = "data/raw/NiiBiMask/102_20120601v2_VOI.nii.gz"
 test_img_ann_path = "data/raw/NiiAnnReg/102_20120601v2_VOI_labelled.nii.gz"
 
@@ -34,7 +34,7 @@ with open(hp_path) as file:
     hparams = yaml.load(file,Loader=yaml.FullLoader)
 
 pretrained_model = Unet3D.load_from_checkpoint(
-    checkpoint_path="/mnt/ssd2/Projects/AortaSeg/chuckUnet/results/train_pytorchlightning/lightning_logs/version_0/checkpoints/epoch=31.ckpt",
+    checkpoint_path="/mnt/ssd2/Projects/AortaSeg/chuckUnet/results/train_pytorchlightning/lightning_logs/version_val86/checkpoints/epoch=35.ckpt",
     hparams = hparams
 )
 pretrained_model.freeze()
@@ -48,6 +48,8 @@ ct = ct.get_data()
 seg = seg.get_data()
 
 res = [1., 1., 1.]
+W=96
+
 zoom_factor = []
 for k in range(3):
     zoom_factor.append(abs(T[k, k]) / res[k])
@@ -57,13 +59,13 @@ zoom_factor = tuple(zoom_factor)
 ct = np.round( spzoom(  ct.astype(float), zoom_factor, order=1 ) ).astype('int16')
 seg = np.round( spzoom( seg.astype(float), zoom_factor, order=0 ) ).astype('uint8')
 
-W=64
+
 
 xmax = ct.shape[0] - W
 ymax = ct.shape[1] - W
 zmax = ct.shape[2] - W
 
-stride = W // 2
+stride = W // 4
 # Calculating indices at which to extract patches
 z_list = list(range(0, zmax, stride))
 z_list = [z for z in z_list if (z + W) < (ct.shape[2] - 1)]
@@ -100,7 +102,7 @@ for z in z_list:
 final_pred = np.argmax(vote_mat.numpy(),axis=0)
 final_pred = final_pred.astype(np.uint8)
 new_img = nibabel.Nifti1Image(final_pred, T)
-nibabel.save(new_img, "102_20120601v2_VOI_pred.nii.gz")
+nibabel.save(new_img, "/mnt/ssd2/Projects/AortaSeg/chuckUnet/results/train_pytorchlightning/lightning_logs/version_val86/102_20120601v2_VOI_pred.nii.gz")
 print(np.unique(final_pred))
 
 
