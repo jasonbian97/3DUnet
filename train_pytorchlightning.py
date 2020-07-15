@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 if os.path.dirname(__file__)!="":
     os.chdir(os.path.dirname(__file__)) # set current .py file as working directory
-from torch.optim.lr_scheduler import MultiStepLR
+import torch.optim.lr_scheduler as LR_scheduler
 from easydict import EasyDict as edict
 import torch.nn.functional as F
 import pdb
@@ -60,8 +60,30 @@ class Unet3D(pl.LightningModule):
         return x
 
     def configure_optimizers(self):
-        optimizer = optim.SGD(self.cnn.parameters(), lr=self.hparams.initial_lr, momentum=self.hparams.momentum)
-        scheduler = MultiStepLR(optimizer, milestones=self.hparams.milestones, gamma=0.1)
+        if self.hparams.optimizer == "SGD":
+            optimizer = optim.SGD(self.cnn.parameters(),
+                                  lr=self.hparams.optimizer_hp[0],
+                                  momentum=self.hparams.optimizer_hp[1],
+                                  weight_decay=self.hparams.optimizer_hp[2])
+        elif self.hparams.optimizer == "Adam":
+            optimizer = optim.Adam(self.cnn.parameters(),
+                                   lr=self.hparams.optimizer_hp[0],
+                                   weight_decay=self.hparams.optimizer_hp[1])
+        else:
+            raise ValueError("wrong selection of optimizer, select from SGD and Adam")
+        # scheduler
+        if self.hparams.scheduler == "StepLR":
+            scheduler = LR_scheduler.StepLR(optimizer, step_size=self.hparams.scheduler_hp[0],
+                                            gamma=self.hparams.scheduler_hp[1])
+        elif self.hparams.scheduler == "MultiStepLR":
+            scheduler = LR_scheduler.MultiStepLR(optimizer, gamma = self.hparams.scheduler_hp[0],
+                                                 milestones= self.hparams.scheduler_hp[1:])
+        elif self.hparams.scheduler == "Cosine":
+            scheduler = LR_scheduler.CosineAnnealingLR(optimizer, T_max=self.hparams.scheduler_hp[0],
+                                                       eta_min=self.hparams.scheduler_hp[1])
+        else:
+            raise ValueError("wrong selection of optimizer, select from StepLR,MultiStepLR,Cosine,ExponentialLR")
+
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def train_dataloader(self):
@@ -213,7 +235,7 @@ if __name__ == '__main__':
                       default_root_dir='results/{}'.format(os.path.basename(__file__)[:-3]),
                       max_epochs = hparams.num_epochs,
                       check_val_every_n_epoch=2,
-                      amp_level=hparams.amp_level,
+                      precision= hparams.precision,
                       distributed_backend=distributed,
                       accumulate_grad_batches = hparams.acc_grad,
                       limit_train_batches=limit_train_batches,
